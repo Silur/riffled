@@ -1,0 +1,9 @@
+[package]
+name = "riffled"
+version = "0.1.0"
+authors = ["Silur <huohuli@protonmail.ch>"]
+
+[dependencies]
+log = "0.3.8"
+sodiumoxide = { git = "https://github.com/dnaq/sodiumoxide.git" }
+num = "0.1.40"
