@@ -1,5 +1,9 @@
-extern crate num;
-use self::num::bigint::BigUint;
+use sodiumoxide::randombytes::randombytes;
+use num::bigint::{BigUint, ToBigUint};
+use num::{Zero, One};
+use num::Integer;
+use std::ops::*;
+use std::cmp::Ordering;
 
 struct Shuffler {
     p: BigUint,
@@ -8,6 +12,29 @@ struct Shuffler {
     commitment: Vec<u8>,
     proof: Vec<u8>
 }
+
+    fn xgcd(a: &BigUint, b: &BigUint) -> (BigUint, BigUint, BigUint) {
+        let (zero, one): (BigUint, BigUint) = (Zero::zero(), One::one());
+        let (mut u_a, mut v_a, mut u_b, mut v_b) = (one.clone(), zero.clone(), zero.clone(), one.clone());
+        let (mut aa, mut bb) = (a.to_biguint().unwrap(), b.to_biguint().unwrap());
+
+        while aa != zero {
+            let q = &bb / &aa;
+
+            let new_a = &bb - &q * &aa;
+            bb = aa;
+            aa = new_a;
+
+            let new_u_a = &u_b - &q * &u_a; 
+            u_b = u_a;
+            u_a = new_u_a;
+
+            let new_v_a = &v_b - &q * &v_a; 
+            v_b = v_a;
+            v_a = new_v_a;
+        }
+        (bb, u_b, v_b)
+    }
 
 impl Shuffler {
     pub fn new() -> Shuffler {
@@ -41,19 +68,103 @@ impl Shuffler {
         }
     }
 
-    fn ilmpp_prove(&self, a: Vec<u8>, b: Vec<u8>) {
-        unimplemented!();
-    }
 
-    fn ilmpp_verify(&self, a: Vec<u8>, b: Vec<u8>) {
-        unimplemented!();
-    }
+    fn ilmpp_prove(&self, a: Vec<BigUint>, b: Vec<BigUint>, gamma: BigUint) -> Result<Vec<BigUint>, String>{
+        if a.len() != b.len() {
+            return Err(String::from("samples are not the same length"))
+        }
 
-    fn knuth_permute(data: Vec<u8>) {
-        unimplemented!();
-    }
+        let p = &self.p;
+        let q = &self.q;
+        let g = &self.g;
 
-    fn shuffle_prove(&self, data: Vec<u8>) {
+        let n = a.len()+1;
+
+        let mut theta: Vec<BigUint> = Vec::new();
+        for i in 0..n {
+            let mut rand = BigUint::from_bytes_be(&randombytes(64));
+            rand %= q - (1 as u32);
+            rand += (1 as u32);
+            theta.push(rand);
+        }
+
+        let mut commitment: Vec<BigUint> = Vec::new();
+        let mut x = BigUint::from(0u32);
+        let mut y = BigUint::from(0u32);
+        for i in 0..n {
+            
+            x = &a[i] * &theta[i];
+            x = &b[i] * &theta[i];
+            x = g.modpow(&x, p);
+            y = g.modpow(&y, p);
+            commitment[i] = x * &y;
+            commitment[i] %= p;
+        }
+        
+        let mut r: Vec<BigUint> = Vec::with_capacity(n-1);
+        let mut num = BigUint::from(1u32);
+        let mut den = BigUint::from(1u32);
+        let mut z_inv_lq = (Zero::zero(), Zero::zero(), Zero::zero());
+        
+        for i in n-2..0 {
+            den *= &a[i+1];
+            num *= &b[i+1];
+            z_inv_lq = xgcd(&den, &q);
+            r[i] = &num * &z_inv_lq.2;
+            r[i] *= &gamma;
+            r[i] *= q;
+            if n-i-1 % 2 == 1 {
+                r[i] = q - &r[i];
+            }
+            r[i] += &theta[i+1];
+        }
+        
+        Ok(r)
+    }
+    
+	fn ilmpp_verify(&self, a: Vec<BigUint>, b: Vec<BigUint>,
+                    commitment: Vec<BigUint>,
+                    proof: Vec<BigUint>,
+                    gamma: BigUint) -> bool {
+        if a.len() != b.len() {
+            return false;
+        }
+        let n = a.len();
+        let mut l: BigUint = Zero::zero();
+        let mut r: BigUint = Zero::zero();
+        let qsubgamma: BigUint = &self.q - &gamma;
+        l = b[0].modpow(&proof[0], &self.p);
+        if n-1 % 2 == 1 {
+            r = a[0].modpow(&qsubgamma, &self.p);
+        } else {
+            r = a[0].modpow(&gamma, &self.p);
+        }
+        r = (&a[0]).mul(&r);
+        r = r.rem(&self.p);
+        if l.cmp(&r) != Ordering::Equal {
+            return false;
+        }
+
+        for i in 1..n-1 {
+            l = a[i].modpow(&proof[i-1], &self.p);
+            r = b[i].modpow(&proof[i], &self.p);
+            l *= &r;
+            l %= &self.p;
+            if l.cmp(&commitment[i]) != Ordering::Equal {
+                return false;
+            }
+        }
+        l = a[n-1].modpow(&proof[n-2], &self.p);
+        r = b[n-1].modpow(&qsubgamma, &self.p);
+        r *= &commitment[n-1];
+        r %= &self.p;
+        if l.cmp(&r) != Ordering::Equal {
+            return false;
+        }
+        return true;
+	}
+
+	fn shuffle_prove(&self, data: Vec<u8>) {
         unimplemented!();
     }
 

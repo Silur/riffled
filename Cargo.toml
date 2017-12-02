@@ -6,4 +6,4 @@ authors = ["Silur <huohuli@protonmail.ch>"]
 [dependencies]
 log = "0.3.8"
 sodiumoxide = { git = "https://github.com/dnaq/sodiumoxide.git" }
-num = "0.1.40"
+num = { git = "https://github.com/rust-num/num.git" }

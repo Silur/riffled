@@ -1,5 +1,6 @@
 extern crate sodiumoxide;
 #[macro_use] extern crate log;
+extern crate num;
 use std::io::prelude::*;
 use std::fs::File;
 use std::io::BufReader;
