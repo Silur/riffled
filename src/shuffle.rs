@@ -69,9 +69,10 @@ impl Shuffler {
     }
 
 
-    fn ilmpp_prove(&self, a: Vec<BigUint>, b: Vec<BigUint>, gamma: BigUint) -> Result<Vec<BigUint>, String>{
+    fn ilmpp_prove(&self, a: Vec<BigUint>, b: Vec<BigUint>, gamma: BigUint) 
+        -> Result<(Vec<BigUint>, Vec<BigUint>), &str>{
         if a.len() != b.len() {
-            return Err(String::from("samples are not the same length"))
+            return Err("samples are not the same length")
         }
 
         let p = &self.p;
@@ -119,7 +120,7 @@ impl Shuffler {
             r[i] += &theta[i+1];
         }
         
-        Ok(r)
+        Ok((commitment, r))
     }
     
 	fn ilmpp_verify(&self, a: Vec<BigUint>, b: Vec<BigUint>,
@@ -164,11 +165,55 @@ impl Shuffler {
         return true;
 	}
 
-	fn shuffle_prove(&self, data: Vec<u8>) {
-        unimplemented!();
+	fn shuffle_prove(&self, x: Vec<BigUint>, y: Vec<BigUint>, 
+                     c: BigUint, d: BigUint, 
+                     t: BigUint, gamma: BigUint) 
+        -> Result<(Vec<BigUint>, Vec<BigUint>), &str>{
+        if x.len() != y.len() {
+            return Err("inputs are not the same length");
+        }
+        let n = x.len();
+        let mut phi: Vec<BigUint> = Vec::with_capacity(2*n);
+        let mut psi: Vec<BigUint> = Vec::with_capacity(2*n);
+        let ct: BigUint = &c * &t;
+        let dt: BigUint = &d * &t;
+
+        for i in 0..n {
+            phi[i] = &x[i] - &dt;
+            phi[i] %= &self.q;
+            phi[n+i] = c.clone();
+            psi[i] = &y[i] - &ct;
+            psi[i] %= &self.q;
+            psi[n+i] = d.clone();
+        }
+        self.ilmpp_prove(psi, phi, gamma)
     }
 
-    fn shuffle_verify(&self, data: Vec<u8>) {
-        unimplemented!();
+    fn shuffle_verify(&self, x: Vec<BigUint>, y: Vec<BigUint>,
+                      c: BigUint, d: BigUint,
+                      t: BigUint,
+                      commitment: Vec<BigUint>, proof: Vec<BigUint>,
+                      gamma: BigUint) -> bool {
+        if x.len() != y.len() { return false; }
+        let n = x.len();
+        let u: BigUint = c.modpow(&t, &self.p);  
+        let w: BigUint = c.modpow(&t, &self.p);
+        let mut z_uinv_q = (Zero::zero(), Zero::zero(), Zero::zero());
+        let mut z_winv_q = (Zero::zero(), Zero::zero(), Zero::zero());
+        z_uinv_q = xgcd(&u, &self.p);
+        z_winv_q = xgcd(&w, &self.p);
+
+        let mut phi: Vec<BigUint> = Vec::with_capacity(2*n);
+        let mut psi: Vec<BigUint> = Vec::with_capacity(2*n);
+
+        for i in 0..n {
+            phi[i] = &x[i] * &z_uinv_q.2;
+            phi[i] %= &self.q;
+            phi[n+i] = c.clone();
+            psi[i] = &y[i] * &z_winv_q.2;
+            psi[i] %= &self.q;
+            psi[n+i] = d.clone();
+        }
+        self.ilmpp_verify(psi, phi, commitment, proof, gamma)
     }
 }
