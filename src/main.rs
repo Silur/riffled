@@ -8,6 +8,7 @@ use std::io::BufReader;
 mod config;
 mod net;
 mod shuffle;
+mod pir;
 use net::{Client, Server, Agent};
 
 fn main() {
