@@ -39,6 +39,9 @@ fn main() {
             "port" => {
                 main_config.port = value.parse().unwrap();
             },
+            "primary-server" => {
+                main_config.primary_server = String::from(value);
+            },
             _ => error!("unexpected config param")
         }
     }
@@ -52,10 +55,8 @@ fn main() {
 
 fn start_server(conf: config::Config) {
     let me = Server::new(conf.host, conf.port);
-    me.bind().expect("failed to bind server");
 }
 
 fn start_client(conf: config::Config) {
     let me = Client::new(conf.host, conf.port);
-    me.bind().expect("failed to bind client");
 }

@@ -5,9 +5,10 @@ use sodiumoxide::crypto::box_::{PublicKey, SecretKey};
 use sodiumoxide::crypto::box_ as PkBox;
 use sodiumoxide::crypto::secretbox::Key;
 use sodiumoxide::crypto::secretbox;
-
+use super::config;
 
 pub struct Server {
+    pub handler: TcpListener,
     pub sock_addr: String,
     pub keypairs: Vec<(PublicKey, SecretKey)>,
     pub permutation: Vec<usize>,
@@ -15,21 +16,25 @@ pub struct Server {
 }
 
 pub struct Client {
+    pub handler: TcpListener,
     pub sock_addr: String,
     pub known_servers: Vec<Server>,
     pub aead_keys: Vec<Key>
 }
 
 pub trait Agent {
-    fn bind(&self) -> Result<TcpListener, IOError>;
     fn broadcast(&self, data: &[u8]);
     fn gen_keys(&mut self);
+    fn main_loop(&self, conf: config::Config);
 }
 
 impl Agent for Server {
     
-    fn bind(&self) -> Result<TcpListener, IOError> {
-        TcpListener::bind(&self.sock_addr)
+    fn main_loop(&self, conf: config::Config) {
+        for stream in self.handler.incoming() {
+            //TODO async, single thread, no-fork IO without tokie
+            ;
+        }
     }
 
     fn gen_keys(&mut self) {
@@ -52,8 +57,8 @@ impl Agent for Server {
 }
 impl Agent for Client {
 
-    fn bind(&self) -> Result<TcpListener, IOError> {
-        TcpListener::bind(&self.sock_addr)
+    fn main_loop(&self, conf: config::Config) {
+        unimplemented!();
     }
 
     fn gen_keys(&mut self) {
@@ -72,6 +77,7 @@ impl Server {
         write!(&mut normalized_addr, "{}:{}", host, port)
             .expect("failed to parse server sock addr");
         Server {
+            handler: TcpListener::bind(&normalized_addr).unwrap(),
             sock_addr: normalized_addr,
             keypairs: Vec::new(),
             permutation: Vec::new(),
@@ -86,6 +92,7 @@ impl Client {
         write!(&mut normalized_addr, "{}:{}", host, port)
             .expect("failed to parse client sock addr");
         Client {
+            handler: TcpListener::bind(&normalized_addr).unwrap(),
             sock_addr: normalized_addr,
             aead_keys: Vec::new(),
             known_servers: Vec::new()
