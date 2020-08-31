@@ -53,9 +53,11 @@ fn main() {
 }
 
 fn start_server(conf: config::Config) {
-    let me = Server::new(conf.host, conf.port);
+    let me = Server::new(conf.host.clone(), conf.port);
+    me.main_loop(conf)
 }
 
 fn start_client(conf: config::Config) {
-    let me = Client::new(conf.host, conf.port);
+    let me = Client::new(conf.host.clone(), conf.port);
+    me.main_loop(conf)
 }
