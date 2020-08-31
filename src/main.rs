@@ -20,7 +20,7 @@ fn main() {
     let mut reader = BufReader::new(conf_file);
     let mut line = String::new();
     let mut main_config = config::Config::new();
-    if !sodiumoxide::init() {
+    if sodiumoxide::init().is_err() {
         error!("failed to initialize crypto libraries in thread-safe mode");
     }
     loop {
